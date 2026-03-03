@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
 """OCR number under mouse cursor and copy to clipboard.
 
-Press 'c' to capture, 'q' to quit.
 Works on macOS and Windows.
+Hotkeys work globally (even when window is not focused on Windows).
 
 Dependencies:
   macOS:   pip install pyobjc-framework-Quartz pyobjc-framework-Vision
-  Windows: pip install mss Pillow winocr
+  Windows: pip install mss Pillow winocr keyboard
 """
 
+import logging
+import os
 import platform
 import re
 import subprocess
 import sys
 import time
+import traceback
 
 SYSTEM = platform.system()
+
+# === Error logging to file next to the executable ===
+
+executable_directory = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+error_log_path = os.path.join(executable_directory, "error.log")
+
+logging.basicConfig(
+    filename=error_log_path,
+    level=logging.ERROR,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
 
 
 # === Platform: Screen capture + OCR ===
@@ -83,6 +97,9 @@ elif SYSTEM == "Windows":
         ctypes.windll.user32.GetCursorPos(ctypes.byref(point))
         return point.x, point.y
 
+    async def _run_ocr(pil_image):
+        return await recognize_pil(pil_image, "en")
+
     def capture_and_ocr():
         screen_x, screen_y = get_mouse_position()
         region = {
@@ -95,7 +112,7 @@ elif SYSTEM == "Windows":
             screenshot = sct.grab(region)
         pil_image = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
 
-        result = asyncio.run(recognize_pil(pil_image, "en"))
+        result = asyncio.run(_run_ocr(pil_image))
         recognized_lines = [line.text for line in result.lines if line.text]
         return "\n".join(recognized_lines)
 
@@ -129,28 +146,42 @@ if SYSTEM == "Darwin":
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, original_settings)
 
 elif SYSTEM == "Windows":
-    import msvcrt
+    import queue
+
+    import keyboard
+
+    _global_key_queue = queue.Queue()
+
+    keyboard.add_hotkey("ctrl+shift+c", lambda: _global_key_queue.put("c"))
+    keyboard.add_hotkey("ctrl+shift+q", lambda: _global_key_queue.put("q"))
 
     def wait_for_key():
-        return msvcrt.getch().decode("utf-8", errors="ignore")
+        return _global_key_queue.get()
 
 
 # === Main ===
 
 def do_capture():
-    start = time.perf_counter()
-    recognized_text = capture_and_ocr()
-    numbers_only = re.sub(r"[^\d.]", "", recognized_text)
-    elapsed = (time.perf_counter() - start) * 1000
-    if numbers_only:
-        copy_to_clipboard(numbers_only)
-        print(f"Copied: {numbers_only} ({elapsed:.0f}ms)")
-    else:
-        print(f"No text detected. ({elapsed:.0f}ms)")
+    try:
+        start = time.perf_counter()
+        recognized_text = capture_and_ocr()
+        numbers_only = re.sub(r"[^\d.]", "", recognized_text)
+        elapsed = (time.perf_counter() - start) * 1000
+        if numbers_only:
+            copy_to_clipboard(numbers_only)
+            print(f"Copied: {numbers_only} ({elapsed:.0f}ms)")
+        else:
+            print(f"No text detected. ({elapsed:.0f}ms)")
+    except Exception:
+        logging.error(traceback.format_exc())
+        print("Error during capture. See error.log for details.")
 
 
 def main():
-    print("Ready. Press 'c' to capture, 'q' to quit.")
+    if SYSTEM == "Windows":
+        print("Ready. Press Ctrl+Shift+C to capture, Ctrl+Shift+Q to quit.")
+    else:
+        print("Ready. Press 'c' to capture, 'q' to quit.")
     try:
         while True:
             key = wait_for_key()
@@ -164,4 +195,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logging.error(traceback.format_exc())
+        print("Fatal error. See error.log for details.")
+        input("Press Enter to exit...")
