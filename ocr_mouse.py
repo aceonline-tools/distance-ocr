@@ -31,6 +31,13 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
 )
 
+def _unhandled_exception_handler(exception_type, exception_value, exception_traceback):
+    logging.error(
+        "".join(traceback.format_exception(exception_type, exception_value, exception_traceback))
+    )
+
+sys.excepthook = _unhandled_exception_handler
+
 
 # === Platform: Screen capture + OCR ===
 
