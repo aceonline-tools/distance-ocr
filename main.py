@@ -159,7 +159,7 @@ elif SYSTEM == "Windows":
 
     _global_key_queue = queue.Queue()
 
-    keyboard.add_hotkey("ctrl+shift+z", lambda: _global_key_queue.put("c"), suppress=True)
+    keyboard.add_hotkey("-", lambda: _global_key_queue.put("c"), suppress=True)
     keyboard.add_hotkey("ctrl+shift+q", lambda: _global_key_queue.put("q"), suppress=True)
 
     def wait_for_key():
@@ -195,7 +195,7 @@ def do_capture():
 
 def main():
     if SYSTEM == "Windows":
-        print("Ready. Press Ctrl+Shift+Z to capture, Ctrl+Shift+Q to quit.")
+        print("Ready. Press '-' to capture, Ctrl+Shift+Q to quit.")
         print("(Run as Administrator if hotkeys don't work in games)")
     else:
         print("Ready. Press 'c' to capture, 'q' to quit.")
