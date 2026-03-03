@@ -176,12 +176,18 @@ def do_capture():
         recognized_text = capture_and_ocr()
         numbers_only = re.sub(r"[^\d.]", "", recognized_text)
         elapsed = (time.perf_counter() - start) * 1000
-        if numbers_only:
+
+        try:
+            value = float(numbers_only) if numbers_only else None
+        except ValueError:
+            value = None
+
+        if value is not None and 0 <= value <= 2000:
             copy_to_clipboard(numbers_only)
             print(f"Copied: {numbers_only} ({elapsed:.0f}ms)")
         else:
             copy_to_clipboard("9999")
-            print(f"No text detected. ({elapsed:.0f}ms)")
+            print(f"Out of range or no text: {numbers_only!r} ({elapsed:.0f}ms)")
     except Exception:
         logging.error(traceback.format_exc())
         print("Error during capture. See error.log for details.")
@@ -189,7 +195,7 @@ def do_capture():
 
 def main():
     if SYSTEM == "Windows":
-        print("Ready. Press Ctrl+Shift+C to capture, Ctrl+Shift+Q to quit.")
+        print("Ready. Press '-' to capture (works globally), Ctrl+Shift+Q to quit.")
     else:
         print("Ready. Press 'c' to capture, 'q' to quit.")
     try:
