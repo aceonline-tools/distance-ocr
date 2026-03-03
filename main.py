@@ -96,8 +96,22 @@ elif SYSTEM == "Windows":
     import io
 
     import mss
-    from PIL import Image
+    from PIL import Image, ImageEnhance, ImageOps
     from winocr import recognize_pil
+
+    def preprocess_image(pil_image):
+        """Preprocess image for better OCR accuracy on colored text."""
+        # Convert to grayscale
+        gray = pil_image.convert("L")
+        # Increase contrast
+        enhancer = ImageEnhance.Contrast(gray)
+        contrasted = enhancer.enhance(2.0)
+        # Scale up for better recognition
+        scaled = contrasted.resize((contrasted.width * 2, contrasted.height * 2), Image.LANCZOS)
+        # Binarize (convert to pure black/white)
+        threshold = 128
+        binary = scaled.point(lambda x: 255 if x > threshold else 0, mode='1')
+        return binary.convert("RGB")
 
     def get_mouse_position():
         point = ctypes.wintypes.POINT()
@@ -119,7 +133,10 @@ elif SYSTEM == "Windows":
             screenshot = sct.grab(region)
         pil_image = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
 
-        result = asyncio.run(_run_ocr(pil_image))
+        # Preprocess for better OCR on colored text
+        processed = preprocess_image(pil_image)
+
+        result = asyncio.run(_run_ocr(processed))
         recognized_lines = [line.text for line in result.lines if line.text]
         return "\n".join(recognized_lines)
 
