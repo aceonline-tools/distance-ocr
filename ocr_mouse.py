@@ -110,10 +110,10 @@ elif SYSTEM == "Windows":
     def capture_and_ocr():
         screen_x, screen_y = get_mouse_position()
         region = {
-            "left": screen_x - 50,
-            "top": screen_y + 25,
-            "width": 100,
-            "height": 100,
+            "left": screen_x - 100,
+            "top": screen_y,
+            "width": 200,
+            "height": 200,
         }
         with mss.mss() as sct:
             screenshot = sct.grab(region)
@@ -159,7 +159,7 @@ elif SYSTEM == "Windows":
 
     _global_key_queue = queue.Queue()
 
-    keyboard.add_hotkey("ctrl+shift+c", lambda: _global_key_queue.put("c"))
+    keyboard.add_hotkey("-", lambda: _global_key_queue.put("c"))
     keyboard.add_hotkey("ctrl+shift+q", lambda: _global_key_queue.put("q"))
 
     def wait_for_key():
@@ -167,6 +167,8 @@ elif SYSTEM == "Windows":
 
 
 # === Main ===
+
+
 
 def do_capture():
     try:
@@ -178,6 +180,7 @@ def do_capture():
             copy_to_clipboard(numbers_only)
             print(f"Copied: {numbers_only} ({elapsed:.0f}ms)")
         else:
+            copy_to_clipboard("9999")
             print(f"No text detected. ({elapsed:.0f}ms)")
     except Exception:
         logging.error(traceback.format_exc())
